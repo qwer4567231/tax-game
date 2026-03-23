@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>租稅小學堂</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- 第一段 CSS (完全不動) --- */
+        body {
+            background-image: url("遊戲封面.png");
+            background-size: cover;
+        }
+        .start-btn {
+            background-image: url("開始按鈕.png");background-size:contain;background-repeat:no-repeat;background-position:center;background-color: transparent;border: none;cursor: pointer;width:250px;height:80px; position: absolute;bottom: 50px;left: 50%;transform: translateX(-50%); transition: transform 0.1s; }
+        .start-btn:active {transform: translateX(-50%) scale(0.95);}
+        .game-title {
+            position: absolute;
+            top: 0px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 60px;
+            color:#003060;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .register-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            box-sizing: border-box;
+            text-align: center;
+            display: none; 
+        }
+        .register-box input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #d05341;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .go-btn {
+            background-color: #d05341;
+            color: #ffffff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 5px 0 #a03d2e;
+            transition: all 0.1s;
+        }
+        .go-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 3px 0 #a03d2e;
+        }
+
+        /* --- 第二段 CSS (完全不動，僅加上初始隱藏) --- */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: none; /* 初始隱藏 */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #0d1117;
+            background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%);
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        canvas {
+            border: 4px solid #4fd1c5;
+            box-shadow: 0 0 20px rgba(79, 209, 197, 0.4);
+            border-radius: 8px;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 40px;
+            pointer-events: none;
+            text-align: center;
+            width: 100%;
+            z-index: 10;
+        }
+        .question-card {
+            background: rgba(26, 32, 44, 0.95);
+            padding: 20px 40px;
+            border-radius: 20px;
+            display: inline-block;
+            border: 2px solid #4fd1c5;
+            box-shadow: 0 0 25px rgba(79, 209, 197, 0.3);
+            max-width: 90%;
+        }
+        #timer-bar-container {
+            width: 100%;
+            height: 10px;
+            background: #2d3748;
+            margin-top: 15px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #timer-bar {
+            width: 100%;
+            height: 100%;
+            background: #4fd1c5;
+            transition: width 0.1s linear, background 0.3s;
+        }
+        .option-box {
+            background: #1e293b;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #1e3a8a;
+            color: #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        .option-correct {
+            border-color: #10b981 !important;
+            background: #064e3b !important;
+            color: #ecfdf5 !important;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+        #hud {
+            position: absolute;
+            bottom: 25px;
+            width: 95%;
+            display: flex;
+            justify-content: flex-start;
+            color: #4fd1c5;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        #feedback {
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            font-weight: 900;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .result-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(13, 17, 23, 0.98);
+            color: white;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden; user-select: none;">  
+
+    <h1 id="gameTitle" class="game-title">租稅射射看</h1>
+    <button id="startBtn" class="start-btn" onclick="startGame()"></button>
+    <div id="registerBox" class="register-box">
+        <input type="text" id="playerName" placeholder="請輸入班級與姓名" autocomplete="off">
+        <button class="go-btn" onclick="goGame()">GO!</button>
+    </div>
+
+    <div id="game-container">
+        <div id="ui-layer">
+            <div class="question-card">
+                <div class="flex justify-start items-center mb-3">
+                    <div id="progress-text" class="text-sm text-cyan-400 font-bold tracking-widest">任務進度：1 / 10</div>
+                </div>
+                <h2 id="question-text" class="text-2xl font-bold text-white mb-4">正在載入戰術數據...</h2>
+                <div id="options-container" class="grid grid-cols-3 gap-4 text-left">
+                    <div id="box-A" class="option-box">
+                        <span class="font-black mr-2 text-cyan-400">A</span><span id="opt-A">---</span>
+                    </div>
+                    <div id="box-B" class="option-box">
+                        <span class="font-black mr-2 text-cyan-400">B</span><span id="opt-B">---</span>
+                    </div>
+                    <div id="box-C" class="option-box">
+                        <span class="font-black mr-2 text-cyan-400">C</span><span id="opt-C">---</span>
+                    </div>
+                </div>
+                <div id="timer-bar-container">
+                    <div id="timer-bar"></div>
+                </div>
+            </div>
+        </div>
+        <div id="hud">
+            <div>目前得分：<span id="score" class="text-white text-2xl ml-2">0</span></div>
+        </div>
+        <div id="feedback"></div>
+        <div id="result-screen" class="result-screen">
+            <div class="border-4 border-cyan-400 p-16 text-center rounded-3xl bg-slate-900 shadow-2xl">
+                <h1 class="text-6xl font-black mb-6 text-cyan-400">任務完成</h1>
+                <p class="text-2xl text-white mb-4">感謝您的參與</p>
+                <p class="text-xl mb-6 text-slate-400">最終得分</p>
+                <p id="final-score" class="text-amber-400 text-7xl font-black">0</p>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        // --- 第一段 JS ---
+        function startGame() {
+            var title = document.getElementById('gameTitle');
+            var startBtn = document.getElementById('startBtn');
+            var registerBox = document.getElementById('registerBox');
+            title.style.display = 'none';
+            startBtn.style.display = 'none';
+            registerBox.style.display = 'block';
+        }
+
+        function goGame() {
+            var name = document.getElementById('playerName').value;
+            if (name === "") {
+                alert("請輸入班級與姓名才能開始喔！");
+            } else {
+               
+                // 進入遊戲：隱藏註冊，顯示遊戲容器，關閉背景圖
+                document.getElementById('registerBox').style.display = 'none';
+                document.body.style.backgroundImage = 'none';
+                document.body.style.cursor = 'none';
+                document.getElementById('game-container').style.display = 'flex';
+                initGame();
+                animate();
+            }
+        }
+
+        // --- 第二段 JS (完全保留原始邏輯與繪圖) ---
+        const rawQuestionBank = [
+        { q: "國家的稅收分為哪兩類？", options: ["國稅及地方稅", "所得稅及房屋稅", "地價稅及營業稅"], correct: "國稅及地方稅" },
+        { q: "下列哪一種稅屬於地方稅？", options: ["萬萬稅", "贈與稅", "房屋稅"], correct: "房屋稅" },
+        { q: "請問唯一官方版儲存雲端發票的APP是哪一個？", options: ["發票怪獸APP", "統一發票兌獎APP", "雲端發票APP"], correct: "統一發票兌獎APP" },
+        { q: "遇到稅捐有爭議時可以找誰幫忙？", options: ["消保官", "法務官", "納保官"], correct: "納保官" },
+        { q: "雲端發票的好處有什麼？", options: ["主動通知中獎", "發票變大", "免費看電影"], correct: "主動通知中獎" },
+        { q: "買東西時不印出紙本發票，把發票存在手機條碼裡，這叫做什麼？", options: ["隱形發票", "空氣發票", "雲端發票"], correct: "雲端發票" },
+        { q: "爸爸開的汽車、媽媽騎的機車（151cc以上），每年 4 月要繳什麼稅才能上路？", options: ["紅綠燈稅", "使用牌照稅", "停車稅"], correct: "使用牌照稅" },
+        { q: "去看電影、去遊樂園玩，門票裡其實包含了一種稅，叫做？", options: ["開心稅", "贈與稅", "娛樂稅"], correct: "娛樂稅" },
+        { q: "為什麼政府要向人民課徵租稅？", options: ["為了依法取得建設國家的穩定財源", "為了存錢", "為了好玩"], correct: "為了依法取得建設國家的穩定財源" },
+        { q: "下列哪一項是稅金的用途？", options: ["蓋學校", "修馬路", "以上皆是"], correct: "以上皆是" },
+        { q: "負責徵收「國稅」的單位是哪一個？", options: ["警察局", "國稅局", "稅捐處"], correct: "國稅局" },
+        { q: "誰需要繳納綜合所得稅？", options: ["有中華民國來源所得的人", "所有小朋友", "只有外國人"], correct: "有中華民國來源所得的人" },
+        { q: "繼承過世親人的財產時，要繳納什麼稅？", options: ["遺產稅", "房屋稅", "地價稅"], correct: "遺產稅" },
+        { q: "誰可以繼承遺產稅？", options: ["男生", "女生", "男生與女生都可以"], correct: "男生與女生都可以" },
+        { q: "如果超過繳稅期間沒繳稅，會被加徵什麼錢？", options: ["獎金", "滯納金", "手續費"], correct: "滯納金" },
+        { q: "下列哪一項是「稅金」帶給我們的生活便利？", options: ["晚上的路燈會亮", "有乾淨的公園可以玩", "以上皆是"], correct: "以上皆是" },
+        { q: "當人死亡留有遺產時，應由誰來繳納遺產稅？", options: ["鄰居", "繼承人", "警察"], correct: "繼承人" },
+        { q: "「綜合所得稅」通常在每年的幾月辦理申報？", options: ["4月", "5月", "11月"], correct: "5月" },
+        { q: "買東西付錢時，價格裡其實已經包含了什麼稅？", options: ["所得稅", "遺產稅", "營業稅"], correct: "營業稅" },
+        { q: "每年11月要繳納土地的什麼稅？", options: ["地價稅", "牌照稅", "營業稅"], correct: "地價稅" },
+        { q: "在同一縣市內有很多筆土地，會收到幾張地價稅單？", options: ["每一筆一張", "只會收到一張", "都不會收到"], correct: "只會收到一張" },
+        { q: "關於牌照稅歸戶，一張繳款書最多限列幾筆車籍？", options: ["3比", "5筆", "10筆"], correct: "5筆" },
+        { q: "在哪裡可以找到納保官？", options: ["國稅局及地方稅捐機關", "學校", "超商"], correct: "國稅局及地方稅捐機關" },
+        { q: "想要房屋稅省錢，要在什麼時間之前申請「住家用」稅率？", options: ["1月22日", "3月22日", "9月22日"], correct: "3月22日" },
+        { q: "每年 11 月開徵的稅目是？", options: ["使用牌照稅", "房屋稅", "地價稅"], correct: "地價稅" }
+    ];
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('score');
+    const questionText = document.getElementById('question-text');
+    const progressText = document.getElementById('progress-text');
+    const timerBar = document.getElementById('timer-bar');
+    const feedback = document.getElementById('feedback');
+    const resultScreen = document.getElementById('result-screen');
+    const finalScoreDisplay = document.getElementById('final-score');
+    
+    const optA = document.getElementById('opt-A');
+    const optB = document.getElementById('opt-B');
+    const optC = document.getElementById('opt-C');
+    const boxes = {
+        'A': document.getElementById('box-A'),
+        'B': document.getElementById('box-B'),
+        'C': document.getElementById('box-C')
+    };
+
+    let gameQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let mouse = { x: 0, y: 0 };
+    let targets = [];
+    let particles = [];
+    let isGameOver = false;
+    let isWaitingForNext = false;
+    
+    let timeLeft = 8.0;
+    const TIME_LIMIT = 8.0;
+    let timerInterval;
+
+    class Target {
+        constructor(label, xRange, y) {
+            this.label = label;
+            this.xRange = xRange;
+            this.y = y;
+            this.width = 130;
+            this.height = 150;
+            this.x = xRange[0] + Math.random() * (xRange[1] - xRange[0] - this.width);
+            this.speed = 1.0 + Math.random() * 1.0;
+            this.direction = Math.random() > 0.5 ? 1 : -1;
+            this.isDown = false;
+            this.tilt = 0;
+            this.pulse = 0;
+        }
+
+        update() {
+            this.pulse += 0.05;
+            if (!this.isDown) {
+                this.x += this.speed * this.direction;
+                if (this.x < this.xRange[0] || this.x > this.xRange[1] - this.width) {
+                    this.direction *= -1;
+                }
+            } else {
+                if (this.tilt < Math.PI / 2) this.tilt += 0.15;
+            }
+        }
+
+        draw() {
+            ctx.save();
+            ctx.strokeStyle = "rgba(79, 209, 197, 0.1)";
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(this.xRange[0], this.y + 40, this.xRange[1] - this.xRange[0], 20);
+            ctx.setLineDash([]);
+
+            ctx.translate(this.x + this.width / 2, this.y + this.height);
+            ctx.rotate(this.tilt);
+            ctx.translate(-this.width / 2, -this.height);
+
+            ctx.fillStyle = "#2d3748";
+            ctx.fillRect(this.width / 2 - 12, this.height - 30, 24, 40);
+            ctx.fillStyle = "#4fd1c5";
+            ctx.fillRect(this.width / 2 - 2, this.height - 30, 4, 40);
+
+            const glow = Math.sin(this.pulse) * 8 + 12;
+            ctx.shadowBlur = this.isDown ? 0 : glow;
+            ctx.shadowColor = "#4fd1c5";
+
+            ctx.beginPath();
+            ctx.arc(this.width / 2, 60, 55, 0, Math.PI * 2);
+            ctx.fillStyle = "#1a202c";
+            ctx.fill();
+            ctx.strokeStyle = "#4fd1c5";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(this.width / 2, 60, 42, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(79, 209, 197, 0.3)";
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(this.width / 2, 60, 18, 0, Math.PI * 2);
+            ctx.fillStyle = "#4fd1c5";
+            ctx.fill();
+
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = "#fff";
+            ctx.font = "900 64px 'Orbitron'";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(this.label, this.width / 2, 64);
+
+            ctx.restore();
+        }
+
+        checkHit(mx, my) {
+            if (this.isDown || isGameOver || isWaitingForNext) return false;
+            const cx = this.x + this.width / 2;
+            const cy = this.y + 60;
+            const dist = Math.sqrt((mx - cx)**2 + (my - cy)**2);
+            if (dist < 55) {
+                this.isDown = true;
+                return true;
+            }
+            return false;
+        }
+
+        reset() {
+            this.isDown = false;
+            this.tilt = 0;
+        }
+    }
+
+    function initGame() {
+    canvas.width = 1000;
+    canvas.height = 600;
+
+    // 1. 先將原始題庫隨機排序（確保題目順序是隨機的）
+    const shuffled = [...rawQuestionBank].sort(() => 0.5 - Math.random());
+
+    // 2. 取前 10 題，但「移除」選項洗牌的邏輯
+    gameQuestions = shuffled.slice(0, 10).map(q => {
+        // 直接使用原始的 q.options，不再進行 sort 排序
+        const optionsFixed = [...q.options]; 
+        
+        // 根據原始順序定義正確答案的標籤 (第一個是 A, 第二個是 B, 第三個是 C)
+        const correctLabel = ["A", "B", "C"][optionsFixed.indexOf(q.correct)];
+        
+        return { ...q, shuffledOptions: optionsFixed, correctLabel };
+    });
+
+    // ... 後續的 targets 設置與 score 重置保持不變 ...
+    targets = [
+        new Target('A', [50, 320], 340),
+        new Target('B', [340, 660], 340),
+        new Target('C', [680, 950], 340)
+    ];
+
+    score = 0;
+    currentQuestionIndex = 0;
+    isGameOver = false;
+    scoreElement.innerText = score;
+    resultScreen.style.display = "none";
+    
+    startNewQuestion();
+}
+
+    function startNewQuestion() {
+        if (currentQuestionIndex < gameQuestions.length) {
+            const q = gameQuestions[currentQuestionIndex];
+            questionText.innerText = q.q;
+            progressText.innerText = `任務進度：${currentQuestionIndex + 1} / 10`;
+            
+            optA.innerText = q.shuffledOptions[0];
+            optB.innerText = q.shuffledOptions[1];
+            optC.innerText = q.shuffledOptions[2];
+
+            // 重置選項標示
+            Object.values(boxes).forEach(box => box.classList.remove('option-correct'));
+
+            targets.forEach(t => t.reset());
+            isWaitingForNext = false;
+            
+            resetTimer();
+        } else {
+            endGame();
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timeLeft = TIME_LIMIT;
+        updateTimerUI();
+        
+        timerInterval = setInterval(() => {
+            if (isWaitingForNext || isGameOver) return;
+            
+            timeLeft -= 0.1;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                handleTimeOut();
+            }
+            updateTimerUI();
+        }, 100);
+    }
+
+    function updateTimerUI() {
+        const percentage = (timeLeft / TIME_LIMIT) * 100;
+        timerBar.style.width = `${percentage}%`;
+        
+        if (timeLeft < 1.5) {
+            timerBar.style.background = "#f87171";
+        } else {
+            timerBar.style.background = "#4fd1c5";
+        }
+    }
+
+    function highlightCorrectAnswer() {
+        const q = gameQuestions[currentQuestionIndex];
+        const correctBox = boxes[q.correctLabel];
+        if (correctBox) {
+            correctBox.classList.add('option-correct');
+        }
+    }
+
+    function handleTimeOut() {
+        isWaitingForNext = true;
+        highlightCorrectAnswer();
+        showFeedback("超時", false);
+        clearInterval(timerInterval);
+        
+        setTimeout(() => {
+            currentQuestionIndex++;
+            startNewQuestion();
+        }, 1500);
+    }
+
+    function endGame() {
+        isGameOver = true;
+        clearInterval(timerInterval);
+        finalScoreDisplay.innerText = score;
+        resultScreen.style.display = "flex";
+
+// --- 自動上傳分數到 Google 表單 ---
+        const name = document.getElementById('playerName').value; // 取得玩家姓名
+        const formID = "1FAIpQLSe_wsv6i2HiQnM-MtJ4Kb2ZEwmGnLKdUC52lTqrMZ3he-qrSQ";
+        const nameID = "entry.628463820";
+        const scoreID = "entry.1081135647";
+
+        // 組合傳送網址
+        const sendURL = `https://docs.google.com/forms/d/e/${formID}/formResponse?${nameID}=${encodeURIComponent(name)}&${scoreID}=${score}&submit=Submit`;
+
+        // 使用 fetch 在背景默默傳送，不影響玩家看到「任務完成」的畫面
+        fetch(sendURL, {
+            mode: 'no-cors'
+        }).then(() => {
+            console.log("資料已成功傳送至後台");
+        }).catch((err) => {
+            console.error("傳送發生錯誤:", err);
+        });
+
+    }
+
+    function showFeedback(msg, isCorrect) {
+        feedback.innerText = msg;
+        feedback.style.color = isCorrect ? "#4fd1c5" : "#f87171";
+        feedback.style.opacity = 1;
+        
+        feedback.style.transform = "translate(-50%, -50%) scale(1.5)";
+        setTimeout(() => {
+            feedback.style.opacity = 0;
+            feedback.style.transform = "translate(-50%, -50%) scale(1.0)";
+        }, 1200);
+    }
+
+    function handleShot() {
+        if (isGameOver || isWaitingForNext) return;
+        
+        for(let i=0; i<12; i++){
+            particles.push({
+                x: mouse.x, y: mouse.y,
+                vx: (Math.random()-0.5)*16, vy: (Math.random()-0.5)*16,
+                life: 1.0, color: "#fff"
+            });
+        }
+
+        targets.forEach(t => {
+            if (t.checkHit(mouse.x, mouse.y)) {
+                isWaitingForNext = true;
+                clearInterval(timerInterval);
+                const q = gameQuestions[currentQuestionIndex];
+                
+                highlightCorrectAnswer();
+
+                if (t.label === q.correctLabel) {
+                    score += 10;
+                    scoreElement.innerText = score;
+                    showFeedback("命中目標", true);
+                } else {
+                    showFeedback("目標錯誤", false);
+                }
+                
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    startNewQuestion();
+                }, 1500);
+            }
+        });
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 繪製背景裝飾（地平線感）
+
+
+
+        ctx.strokeStyle = "rgba(79, 209, 197, 0.1)";
+        ctx.lineWidth = 1;
+        for(let i=0; i<canvas.width; i+=50){
+            ctx.beginPath(); ctx.moveTo(i, 520); ctx.lineTo(i+20, 540); ctx.stroke();
+        }
+
+        targets.forEach(t => {
+            t.update();
+            t.draw();
+        });
+
+        // 粒子特效
+        for(let i = particles.length-1; i >= 0; i--){
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            p.life -= 0.05;
+            if(p.life <= 0) particles.splice(i, 1);
+            else {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // 繪製準星
+        if (!isGameOver) {
+            const pulse = Math.sin(Date.now() / 150) * 4;
+            ctx.strokeStyle = isWaitingForNext ? "#4a5568" : "#4fd1c5";
+            ctx.lineWidth = 2;
+            
+            const size = 30 + pulse;
+            const gap = 15;
+            
+            ctx.beginPath();
+            ctx.moveTo(mouse.x - size, mouse.y - size + gap);
+            ctx.lineTo(mouse.x - size, mouse.y - size);
+            ctx.lineTo(mouse.x - size + gap, mouse.y - size);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mouse.x + size, mouse.y - size + gap);
+            ctx.lineTo(mouse.x + size, mouse.y - size);
+            ctx.lineTo(mouse.x + size - gap, mouse.y - size);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mouse.x - size, mouse.y + size - gap);
+            ctx.lineTo(mouse.x - size, mouse.y + size);
+            ctx.lineTo(mouse.x - size + gap, mouse.y + size);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(mouse.x + size, mouse.y + size - gap);
+            ctx.lineTo(mouse.x + size, mouse.y + size);
+            ctx.lineTo(mouse.x + size - gap, mouse.y + size);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        handleShot();
+    });
+
+    window.onload = () => {
+        initGame();
+        animate();
+    };
+</script>
+
+</body>
+</html>
