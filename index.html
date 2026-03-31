@@ -85,6 +85,8 @@
             border: 4px solid #4fd1c5;
             box-shadow: 0 0 20px rgba(79, 209, 197, 0.4);
             border-radius: 8px;
+            /* 移除固定寬高，改由 JS 控制 style 寬度 */
+            max-width: 98vw; 
         }
         #ui-layer {
             position: absolute;
@@ -230,8 +232,6 @@
             if (name === "") {
                 alert("請輸入班級與姓名才能開始喔！");
             } else {
-               
-                // 進入遊戲：隱藏註冊，顯示遊戲容器，關閉背景圖
                 document.getElementById('registerBox').style.display = 'none';
                 document.body.style.backgroundImage = 'none';
                 document.body.style.cursor = 'none';
@@ -241,7 +241,7 @@
             }
         }
 
-        // --- 第二段 JS (完全保留原始邏輯與繪圖) ---
+        // --- 第二段 JS ---
         const rawQuestionBank = [
         { q: "國家的稅收分為哪兩類？", options: ["國稅及地方稅", "所得稅及房屋稅", "地價稅及營業稅"], correct: "國稅及地方稅" },
         { q: "下列哪一種稅屬於地方稅？", options: ["萬萬稅", "贈與稅", "房屋稅"], correct: "房屋稅" },
@@ -397,38 +397,41 @@
     }
 
     function initGame() {
-    canvas.width = 1000;
-    canvas.height = 600;
+        // --- 新增：RWD 自適應縮放邏輯 ---
+        const containerWidth = window.innerWidth * 0.95; 
+        const maxWidth = 1000;
+        const finalWidth = Math.min(containerWidth, maxWidth);
+        const ratio = 600 / 1000;
 
-    // 1. 先將原始題庫隨機排序（確保題目順序是隨機的）
-    const shuffled = [...rawQuestionBank].sort(() => 0.5 - Math.random());
+        canvas.width = 1000; // 邏輯寬度不變
+        canvas.height = 600; // 邏輯高度不變
+        canvas.style.width = finalWidth + "px"; // 視覺縮放
+        canvas.style.height = (finalWidth * ratio) + "px"; // 視覺縮放
 
-    // 2. 取前 10 題，但「移除」選項洗牌的邏輯
-    gameQuestions = shuffled.slice(0, 10).map(q => {
-        // 直接使用原始的 q.options，不再進行 sort 排序
-        const optionsFixed = [...q.options]; 
+        // 1. 先將原始題庫隨機排序
+        const shuffled = [...rawQuestionBank].sort(() => 0.5 - Math.random());
+
+        // 2. 取前 10 題
+        gameQuestions = shuffled.slice(0, 10).map(q => {
+            const optionsFixed = [...q.options]; 
+            const correctLabel = ["A", "B", "C"][optionsFixed.indexOf(q.correct)];
+            return { ...q, shuffledOptions: optionsFixed, correctLabel };
+        });
+
+        targets = [
+            new Target('A', [50, 320], 340),
+            new Target('B', [340, 660], 340),
+            new Target('C', [680, 950], 340)
+        ];
+
+        score = 0;
+        currentQuestionIndex = 0;
+        isGameOver = false;
+        scoreElement.innerText = score;
+        resultScreen.style.display = "none";
         
-        // 根據原始順序定義正確答案的標籤 (第一個是 A, 第二個是 B, 第三個是 C)
-        const correctLabel = ["A", "B", "C"][optionsFixed.indexOf(q.correct)];
-        
-        return { ...q, shuffledOptions: optionsFixed, correctLabel };
-    });
-
-    // ... 後續的 targets 設置與 score 重置保持不變 ...
-    targets = [
-        new Target('A', [50, 320], 340),
-        new Target('B', [340, 660], 340),
-        new Target('C', [680, 950], 340)
-    ];
-
-    score = 0;
-    currentQuestionIndex = 0;
-    isGameOver = false;
-    scoreElement.innerText = score;
-    resultScreen.style.display = "none";
-    
-    startNewQuestion();
-}
+        startNewQuestion();
+    }
 
     function startNewQuestion() {
         if (currentQuestionIndex < gameQuestions.length) {
@@ -440,12 +443,9 @@
             optB.innerText = q.shuffledOptions[1];
             optC.innerText = q.shuffledOptions[2];
 
-            // 重置選項標示
             Object.values(boxes).forEach(box => box.classList.remove('option-correct'));
-
             targets.forEach(t => t.reset());
             isWaitingForNext = false;
-            
             resetTimer();
         } else {
             endGame();
@@ -459,7 +459,6 @@
         
         timerInterval = setInterval(() => {
             if (isWaitingForNext || isGameOver) return;
-            
             timeLeft -= 0.1;
             if (timeLeft <= 0) {
                 timeLeft = 0;
@@ -472,20 +471,13 @@
     function updateTimerUI() {
         const percentage = (timeLeft / TIME_LIMIT) * 100;
         timerBar.style.width = `${percentage}%`;
-        
-        if (timeLeft < 1.5) {
-            timerBar.style.background = "#f87171";
-        } else {
-            timerBar.style.background = "#4fd1c5";
-        }
+        timerBar.style.background = timeLeft < 1.5 ? "#f87171" : "#4fd1c5";
     }
 
     function highlightCorrectAnswer() {
         const q = gameQuestions[currentQuestionIndex];
         const correctBox = boxes[q.correctLabel];
-        if (correctBox) {
-            correctBox.classList.add('option-correct');
-        }
+        if (correctBox) correctBox.classList.add('option-correct');
     }
 
     function handleTimeOut() {
@@ -493,7 +485,6 @@
         highlightCorrectAnswer();
         showFeedback("超時", false);
         clearInterval(timerInterval);
-        
         setTimeout(() => {
             currentQuestionIndex++;
             startNewQuestion();
@@ -506,31 +497,21 @@
         finalScoreDisplay.innerText = score;
         resultScreen.style.display = "flex";
 
-// --- 自動上傳分數到 Google 表單 ---
-        const name = document.getElementById('playerName').value; // 取得玩家姓名
+        const name = document.getElementById('playerName').value;
         const formID = "1FAIpQLSe_wsv6i2HiQnM-MtJ4Kb2ZEwmGnLKdUC52lTqrMZ3he-qrSQ";
         const nameID = "entry.628463820";
         const scoreID = "entry.1081135647";
-
-        // 組合傳送網址
         const sendURL = `https://docs.google.com/forms/d/e/${formID}/formResponse?${nameID}=${encodeURIComponent(name)}&${scoreID}=${score}&submit=Submit`;
 
-        // 使用 fetch 在背景默默傳送，不影響玩家看到「任務完成」的畫面
-        fetch(sendURL, {
-            mode: 'no-cors'
-        }).then(() => {
-            console.log("資料已成功傳送至後台");
-        }).catch((err) => {
-            console.error("傳送發生錯誤:", err);
-        });
-
+        fetch(sendURL, { mode: 'no-cors' })
+        .then(() => console.log("資料傳送成功"))
+        .catch((err) => console.error("傳送錯誤:", err));
     }
 
     function showFeedback(msg, isCorrect) {
         feedback.innerText = msg;
         feedback.style.color = isCorrect ? "#4fd1c5" : "#f87171";
         feedback.style.opacity = 1;
-        
         feedback.style.transform = "translate(-50%, -50%) scale(1.5)";
         setTimeout(() => {
             feedback.style.opacity = 0;
@@ -554,7 +535,6 @@
                 isWaitingForNext = true;
                 clearInterval(timerInterval);
                 const q = gameQuestions[currentQuestionIndex];
-                
                 highlightCorrectAnswer();
 
                 if (t.label === q.correctLabel) {
@@ -575,11 +555,6 @@
 
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 繪製背景裝飾（地平線感）
-
-
-
         ctx.strokeStyle = "rgba(79, 209, 197, 0.1)";
         ctx.lineWidth = 1;
         for(let i=0; i<canvas.width; i+=50){
@@ -591,7 +566,6 @@
             t.draw();
         });
 
-        // 粒子特效
         for(let i = particles.length-1; i >= 0; i--){
             const p = particles[i];
             p.x += p.vx; p.y += p.vy;
@@ -605,41 +579,19 @@
         }
         ctx.globalAlpha = 1;
 
-        // 繪製準星
         if (!isGameOver) {
             const pulse = Math.sin(Date.now() / 150) * 4;
             ctx.strokeStyle = isWaitingForNext ? "#4a5568" : "#4fd1c5";
             ctx.lineWidth = 2;
-            
             const size = 30 + pulse;
             const gap = 15;
             
-            ctx.beginPath();
-            ctx.moveTo(mouse.x - size, mouse.y - size + gap);
-            ctx.lineTo(mouse.x - size, mouse.y - size);
-            ctx.lineTo(mouse.x - size + gap, mouse.y - size);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(mouse.x + size, mouse.y - size + gap);
-            ctx.lineTo(mouse.x + size, mouse.y - size);
-            ctx.lineTo(mouse.x + size - gap, mouse.y - size);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(mouse.x - size, mouse.y + size - gap);
-            ctx.lineTo(mouse.x - size, mouse.y + size);
-            ctx.lineTo(mouse.x - size + gap, mouse.y + size);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(mouse.x + size, mouse.y + size - gap);
-            ctx.lineTo(mouse.x + size, mouse.y + size);
-            ctx.lineTo(mouse.x + size - gap, mouse.y + size);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mouse.x - size, mouse.y - size + gap); ctx.lineTo(mouse.x - size, mouse.y - size); ctx.lineTo(mouse.x - size + gap, mouse.y - size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mouse.x + size, mouse.y - size + gap); ctx.lineTo(mouse.x + size, mouse.y - size); ctx.lineTo(mouse.x + size - gap, mouse.y - size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mouse.x - size, mouse.y + size - gap); ctx.lineTo(mouse.x - size, mouse.y + size); ctx.lineTo(mouse.x - size + gap, mouse.y + size); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(mouse.x + size, mouse.y + size - gap); ctx.lineTo(mouse.x + size, mouse.y + size); ctx.lineTo(mouse.x + size - gap, mouse.y + size); ctx.stroke();
+            ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 4, 0, Math.PI * 2); ctx.stroke();
         }
-
         requestAnimationFrame(animate);
     }
 
@@ -659,6 +611,5 @@
         animate();
     };
 </script>
-
 </body>
 </html>
