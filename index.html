@@ -29,7 +29,6 @@
         #game-wrapper { position: relative; width: 100vw; height: 100vh; display: none; overflow: hidden; }
         canvas { display: block; width: 100%; height: 100%; }
         
-        /* UI 層置頂 */
         #ui-overlay {
             position: absolute; top: 10px; left: 0; width: 100%; 
             display: flex; flex-direction: column; align-items: center; pointer-events: none;
@@ -38,13 +37,13 @@
             background: rgba(15, 23, 42, 0.9); border: 2px solid #4fd1c5;
             padding: 12px; border-radius: 15px; width: 92%; max-width: 500px; pointer-events: auto;
         }
-        .option-box { background: #1e293b; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; color: #cbd5e1; font-size: 14px; }
-        .option-correct { border-color: #10b981 !important; background: #064e3b !important; }
+        .option-box { background: #1e293b; padding: 6px 10px; border-radius: 6px; border: 1px solid #334155; color: #cbd5e1; font-size: 14px; margin-bottom: 4px; }
+        .option-correct { border-color: #10b981 !important; background: #064e3b !important; color: #fff !important; }
         
         #hud { position: absolute; bottom: 20px; left: 20px; color: #4fd1c5; font-weight: bold; font-size: 20px; pointer-events: none; }
         #feedback {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 60px; font-weight: 900; opacity: 0; pointer-events: none; transition: 0.3s;
+            font-size: 60px; font-weight: 900; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 50;
         }
         .result-screen {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
@@ -68,7 +67,7 @@
             <div class="question-card">
                 <div id="progress-text" class="text-xs text-cyan-400 font-bold mb-1">進度：1 / 10</div>
                 <h2 id="question-text" class="text-lg font-bold text-white mb-2 leading-tight">載入中...</h2>
-                <div id="options-container" class="grid grid-cols-1 gap-1 text-left">
+                <div id="options-container" class="flex flex-col text-left">
                     <div id="box-A" class="option-box">A. <span id="opt-A">---</span></div>
                     <div id="box-B" class="option-box">B. <span id="opt-B">---</span></div>
                     <div id="box-C" class="option-box">C. <span id="opt-C">---</span></div>
@@ -101,7 +100,9 @@
             { q: "每年 4 月要繳什麼稅才能上路？", options: ["紅綠燈稅", "使用牌照稅", "停車稅"], correct: "使用牌照稅" },
             { q: "看電影、去遊樂園玩，門票包含什麼稅？", options: ["開心稅", "贈與稅", "娛樂稅"], correct: "娛樂稅" },
             { q: "為什麼要向人民課徵租稅？", options: ["為了國家建設財源", "為了存錢", "為了好玩"], correct: "為了國家建設財源" },
-            { q: "下列哪一項是稅金的用途？", options: ["蓋學校", "修馬路", "以上皆是"], correct: "以上皆是" }
+            { q: "下列哪一項是稅金的用途？", options: ["蓋學校", "修馬路", "以上皆是"], correct: "以上皆是" },
+            { q: "負責徵收「國稅」的單位是哪一個？", options: ["警察局", "國稅局", "稅捐處"], correct: "國稅局" },
+            { q: "每年11月要繳納土地的什麼稅？", options: ["地價稅", "牌照稅", "營業稅"], correct: "地價稅" }
         ];
 
         const canvas = document.getElementById('gameCanvas');
@@ -111,7 +112,6 @@
         let timeLeft = 8, timerInterval;
 
         function showRegister() { document.getElementById('registerBox').style.display = 'block'; }
-
         function confirmEntry() {
             if (!document.getElementById('playerName').value) return alert("請輸入班級姓名");
             document.getElementById('start-screen').style.display = 'none';
@@ -124,9 +124,8 @@
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (targets.length > 0) setupTargets();
+            setupTargets();
         }
-
         window.addEventListener('resize', resize);
 
         class Target {
@@ -135,7 +134,7 @@
                 this.xMin = xMin; this.xMax = xMax; this.y = y;
                 this.w = 80; this.h = 100;
                 this.x = xMin + Math.random() * (xMax - xMin - this.w);
-                this.speed = 1.5 + Math.random();
+                this.speed = 1.2 + Math.random() * 0.8;
                 this.dir = 1; this.isDown = false; this.tilt = 0;
             }
             update() {
@@ -149,7 +148,6 @@
                 ctx.translate(this.x + this.w/2, this.y + this.h);
                 ctx.rotate(this.tilt);
                 ctx.translate(-this.w/2, -this.h);
-                // 畫靶
                 ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.arc(this.w/2, 40, 35, 0, Math.PI*2); ctx.fill();
                 ctx.strokeStyle = "#4fd1c5"; ctx.lineWidth = 3; ctx.stroke();
                 ctx.fillStyle = "white"; ctx.font = "bold 32px Arial"; ctx.textAlign = "center";
@@ -164,7 +162,7 @@
         }
 
         function setupTargets() {
-            const yPos = canvas.height * 0.65;
+            const yPos = canvas.height * 0.7;
             const third = canvas.width / 3;
             targets = [
                 new Target('A', 10, third - 10, yPos),
@@ -179,20 +177,22 @@
                 const opts = [...q.options];
                 return { ...q, opts, ans: ["A","B","C"][opts.indexOf(q.correct)] };
             });
-            setupTargets();
             nextQuestion();
         }
 
         function nextQuestion() {
             if (currentIdx >= 10) return endGame();
+            
             isWaiting = false;
             targets.forEach(t => { t.isDown = false; t.tilt = 0; });
             const q = gameQuestions[currentIdx];
+            
             document.getElementById('question-text').innerText = q.q;
             document.getElementById('opt-A').innerText = q.opts[0];
             document.getElementById('opt-B').innerText = q.opts[1];
             document.getElementById('opt-C').innerText = q.opts[2];
             document.getElementById('progress-text').innerText = `進度：${currentIdx + 1} / 10`;
+            
             document.querySelectorAll('.option-box').forEach(b => b.classList.remove('option-correct'));
             resetTimer();
         }
@@ -201,20 +201,32 @@
             clearInterval(timerInterval);
             timeLeft = 8;
             timerInterval = setInterval(() => {
+                if (isWaiting || isGameOver) return;
                 timeLeft -= 0.1;
                 document.getElementById('timer-bar').style.width = (timeLeft/8)*100 + "%";
                 if (timeLeft <= 0) {
-                    isWaiting = true;
-                    showFeedback("超時", false);
-                    revealAnswer();
+                    handleTimeOut();
                 }
             }, 100);
+        }
+
+        function handleTimeOut() {
+            isWaiting = true;
+            clearInterval(timerInterval);
+            showFeedback("超時了！", false);
+            revealAnswer();
         }
 
         function revealAnswer() {
             const correctLetter = gameQuestions[currentIdx].ans;
             document.getElementById('box-' + correctLetter).classList.add('option-correct');
-            setTimeout(() => { currentIdx++; nextQuestion(); }, 1500);
+            // 延遲 1.5 秒跳下一題
+            setTimeout(() => {
+                if (!isGameOver) {
+                    currentIdx++;
+                    nextQuestion();
+                }
+            }, 1500);
         }
 
         function handleHit() {
@@ -243,6 +255,7 @@
 
         function endGame() {
             isGameOver = true;
+            clearInterval(timerInterval);
             document.getElementById('result-screen').style.display = "flex";
             document.getElementById('final-score').innerText = score;
             const name = document.getElementById('playerName').value;
@@ -253,7 +266,6 @@
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             targets.forEach(t => { t.update(); t.draw(); });
-            // 準星
             ctx.strokeStyle = "#4fd1c5"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 15, 0, Math.PI*2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(mouse.x-20, mouse.y); ctx.lineTo(mouse.x+20, mouse.y); ctx.stroke();
@@ -261,7 +273,6 @@
             requestAnimationFrame(animate);
         }
 
-        // 事件監聽
         const getPos = (e) => {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -272,7 +283,6 @@
         canvas.addEventListener('mousemove', getPos);
         canvas.addEventListener('mousedown', (e) => { getPos(e); handleHit(); });
         canvas.addEventListener('touchstart', (e) => { e.preventDefault(); getPos(e); handleHit(); });
-
     </script>
 </body>
 </html>
